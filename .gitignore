@@ -1,0 +1,7 @@
+# Se ignora todo, excepto los archivos que pide la entrega del taller
+*
+!.gitignore
+!Dockerfile
+!.dockerignore
+!audit_session.log
+!FORENSIC_REPORT.md

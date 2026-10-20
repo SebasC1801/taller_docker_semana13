@@ -1,0 +1,18 @@
+# Artefactos de compilacion y metadatos que no deben viajar al contexto
+target/
+.git/
+.gitignore
+.idea/
+.vscode/
+*.iml
+
+# Evidencias y documentacion del taller
+audit_session.log
+FORENSIC_REPORT.md
+*.md
+*.zip
+*.sh
+
+# Archivos de Docker (no se necesitan dentro de la imagen)
+Dockerfile
+.dockerignore
