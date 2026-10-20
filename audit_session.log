@@ -1,4 +1,121 @@
+$ docker build --no-cache --build-arg STUDENT_ID="913148" -t eco-air-backend:1.0.0 .
+[+] Building 126.5s (17/17) FINISHED                                                                         docker:desktop-linux
+ => [internal] load build definition from Dockerfile                                                                         0.0s
+ => => transferring dockerfile: 921B                                                                                         0.0s
+ => [internal] load metadata for docker.io/library/eclipse-temurin:17-jre-alpine                                             0.5s
+ => [internal] load metadata for docker.io/library/maven:3.9.6-eclipse-temurin-17-alpine                                     0.5s
+ => [internal] load .dockerignore                                                                                            0.0s
+ => => transferring context: 340B                                                                                            0.0s
+ => CACHED [stage-1 1/5] FROM docker.io/library/eclipse-temurin:17-jre-alpine@sha256:3c472129dc75a8d1d7a3f2df5b2093a8077e44  0.0s
+ => [internal] load build context                                                                                            0.0s
+ => => transferring context: 1.75kB                                                                                          0.0s
+ => [builder 1/6] FROM docker.io/library/maven:3.9.6-eclipse-temurin-17-alpine@sha256:ffddac7b04101358048f872fba9d978b2a1f9  0.0s
+ => [stage-1 2/5] RUN addgroup -S sensorgroup     && adduser -S -u 10001 -G sensorgroup sensor_user                          0.2s
+ => CACHED [builder 2/6] WORKDIR /build                                                                                      0.0s
+ => [builder 3/6] COPY pom.xml .                                                                                             0.0s
+ => [builder 4/6] RUN mvn dependency:go-offline -B                                                                         102.5s
+ => [stage-1 3/5] WORKDIR /app                                                                                               0.0s
+ => [builder 5/6] COPY src ./src                                                                                             0.1s
+ => [builder 6/6] RUN mvn package -DskipTests -B                                                                            20.0s
+ => [stage-1 4/5] COPY --from=builder /build/target/eco-air-backend.jar app.jar                                              0.1s
+ => [stage-1 5/5] RUN chown -R sensor_user:sensorgroup /app                                                                  0.2s
+ => exporting to image                                                                                                       2.8s
+ => => exporting layers                                                                                                      2.2s
+ => => exporting manifest list sha256:154b7ab29aa354614222c0a881817f8f98a6fa41982e721dd65c716da8734ea0                       0.0s
+ => => naming to docker.io/library/eco-air-backend:1.0.0                                                                     0.0s
+ => => unpacking to docker.io/library/eco-air-backend:1.0.0                                                                  0.5s
 
-==================================================================
-RETO 1 - Construccion (STUDENT_ID=913148)
-==================================================================
+$ docker history --human --format "table {{.Size}}\t{{.CreatedBy}}" eco-air-backend:1.0.0
+SIZE      CREATED BY
+0B        ENTRYPOINT ["sh" "-c" "exec java $JAVA_OPTS …
+0B        USER sensor_user
+0B        EXPOSE [8080/tcp]
+0B        ENV OPERATOR_ID=913148
+0B        ENV JAVA_OPTS=-XX:+UseContainerSupport -XX:M…
+49MB      RUN |1 STUDENT_ID=913148 /bin/sh -c chown -R…
+49MB      COPY /build/target/eco-air-backend.jar app.j…
+8.19kB    WORKDIR /app
+41kB      RUN |1 STUDENT_ID=913148 /bin/sh -c addgroup…
+0B        ARG STUDENT_ID=913148
+0B        ENTRYPOINT ["/__cacert_entrypoint.sh"]
+12.3kB    COPY --chmod=755 entrypoint.sh /__cacert_ent…
+12.3kB    RUN /bin/sh -c set -eux;     echo "Verifying…
+141MB     RUN /bin/sh -c set -eux;     ARCH="$(apk --p…
+0B        ENV JAVA_VERSION=jdk-17.0.20.1+1
+44MB      RUN /bin/sh -c set -eux;     apk add --no-ca…
+0B        ENV LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_AL…
+0B        ENV PATH=/opt/java/openjdk/bin:/usr/local/sb…
+0B        ENV JAVA_HOME=/opt/java/openjdk
+0B        CMD ["/bin/sh"]
+9.08MB    ADD alpine-minirootfs-3.24.2-x86_64.tar.gz /…
+
+$ docker run -d --name eco_air_active -p 8080:8080 -m 192m --memory-swap 192m eco-air-backend:1.0.0
+$ docker inspect eco_air_active --format='Status: {{.State.Status}} | ExitCode: {{.State.ExitCode}} | OOMKilled: {{.State.OOMKilled}}'
+Status: exited | ExitCode: 137 | OOMKilled: true
+
+$ docker run -d --name eco_air_active -p 8080:8080 -m 256m --memory-swap 256m eco-air-backend:1.0.0
+$ docker logs --timestamps eco_air_active | grep "Started EcoAirApplication"
+2026-10-20T21:11:32.396307051Z 2026-10-20T21:11:32.395Z  INFO 1 --- [eco-air-backend] [           main] com.ecoair.backend.EcoAirApplication     : Started EcoAirApplication in 5.64 seconds (process running for 6.55)
+
+$ docker top eco_air_active -o pid,user,comm
+PID                 USER                COMMAND
+630                 10001               java
+
+$ winpty docker exec -t eco_air_active id sensor_user
+uid=10001(sensor_user) gid=101(sensorgroup) groups=101(sensorgroup),101(sensorgroup)
+
+$ winpty docker exec -t eco_air_active ps -o pid,user,comm
+PID   USER     COMMAND
+    1 sensor_u java
+   52 sensor_u ps
+
+$ winpty docker exec -t eco_air_active touch //etc/crontab_fake
+touch: cannot touch '//etc/crontab_fake': Permission denied
+
+$ winpty docker exec -t eco_air_active which mvn
+$ echo $?
+1
+
+$ winpty docker exec -t eco_air_active find // -name "*.java" 2>/dev/null
+find: /root: Permission denied
+find: /proc/tty/driver: Permission denied
+$ echo $?
+1
+
+$ winpty docker exec -t eco_air_active sh -c 'find / -name "*.java" 2>/dev/null'
+
+$ docker run -d --name eco_air_crash -m 48m eco-air-backend:1.0.0
+cc3fb69611db36d59b82a42133b1fa7b0a6a8a6bab3e6b93c5cba790165bfdb0
+$ docker inspect eco_air_crash --format='Status: {{.State.Status}} | ExitCode: {{.State.ExitCode}} | OOMKilled: {{.State.OOMKilled}}'
+Status: running | ExitCode: 0 | OOMKilled: false
+$ docker inspect eco_air_crash --format='Status: {{.State.Status}} | ExitCode: {{.State.ExitCode}} | OOMKilled: {{.State.OOMKilled}}'
+Status: exited | ExitCode: 137 | OOMKilled: true
+
+$ docker run -d --name eco_air_active -p 8080:8080 -m 224m --memory-swap 224m eco-air-backend:1.0.0
+$ docker logs --timestamps eco_air_active | grep "Started EcoAirApplication"
+2026-10-20T21:35:56.777496096Z 2026-10-20T21:35:56.777Z  INFO 1 --- [eco-air-backend] [           main] com.ecoair.backend.EcoAirApplication     : Started EcoAirApplication in 5.466 seconds (process running for 6.482)
+$ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8080/api/alertas
+200
+$ for i in $(seq 1 30); do curl -s -o /dev/null http://localhost:8080/api/alertas; done
+$ docker stats --no-stream eco_air_active
+CONTAINER ID   NAME             CPU %     MEM USAGE / LIMIT   MEM %     NET I/O           BLOCK I/O       PIDS
+c8bb28b0d8f2   eco_air_active   0.22%     176.1MiB / 224MiB   78.61%    18.5kB / 14.6kB   112MB / 180kB   31
+$ docker inspect eco_air_active --format='Status: {{.State.Status}} | ExitCode: {{.State.ExitCode}} | OOMKilled: {{.State.OOMKilled}}'
+Status: running | ExitCode: 0 | OOMKilled: false
+
+$ docker run -d --name eco_air_active -p 8080:8080 -m 208m --memory-swap 208m eco-air-backend:1.0.0
+$ docker logs --timestamps eco_air_active | grep "Started EcoAirApplication"
+2026-10-20T21:43:40.787667790Z 2026-10-20T21:43:40.787Z  INFO 1 --- [eco-air-backend] [           main] com.ecoair.backend.EcoAirApplication     : Started EcoAirApplication in 5.638 seconds (process running for 6.598)
+$ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8080/api/alertas
+200
+$ for i in $(seq 1 30); do curl -s -o /dev/null http://localhost:8080/api/alertas; done
+$ docker stats --no-stream eco_air_active
+CONTAINER ID   NAME             CPU %     MEM USAGE / LIMIT   MEM %     NET I/O           BLOCK I/O         PIDS
+fdbe0289e979   eco_air_active   0.31%     178.3MiB / 208MiB   85.72%    18.5kB / 14.6kB   88.3MB / 73.7kB   31
+$ docker inspect eco_air_active --format='Status: {{.State.Status}} | ExitCode: {{.State.ExitCode}} | OOMKilled: {{.State.OOMKilled}}'
+Status: running | ExitCode: 0 | OOMKilled: false
+
+$ docker inspect --format='{{.Id}}' eco-air-backend:1.0.0
+sha256:154b7ab29aa354614222c0a881817f8f98a6fa41982e721dd65c716da8734ea0
+$ docker exec eco_air_active env | grep OPERATOR_ID
+OPERATOR_ID=913148
